@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>(new URLSearchParams(loc.search).get('mode') === 'register' ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isAdult, setIsAdult] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const from = (loc.state as { from?: string } | null)?.from ?? '/app';
@@ -27,6 +28,10 @@ export default function LoginPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (mode === 'register' && !isAdult) {
+      setErrors(['Please confirm that you are 18 or older to create an account.']);
+      return;
+    }
     setBusy(true);
     setErrors([]);
     try {
@@ -48,7 +53,7 @@ export default function LoginPage() {
       </Link>
       <Card className="relative w-full max-w-sm animate-in fade-in-0 slide-in-from-bottom-6 duration-700 fill-mode-both">
         <CardHeader>
-          <Tabs value={mode} onValueChange={(v) => { setMode(v as typeof mode); setErrors([]); }} className="mb-2">
+          <Tabs value={mode} onValueChange={(v) => { setMode(v as typeof mode); setErrors([]); setIsAdult(false); }} className="mb-2">
             <TabsList className="w-full"><TabsTrigger value="login">Sign in</TabsTrigger><TabsTrigger value="register">Create account</TabsTrigger></TabsList>
           </Tabs>
           <CardTitle className="text-xl">{mode === 'register' ? 'Create your account' : 'Sign in to FlipPilot'}</CardTitle>
@@ -65,6 +70,12 @@ export default function LoginPage() {
               <Input id="password" type="password" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="h-10" />
               {mode === 'register' && <p className="text-xs text-muted-foreground">At least 8 characters.</p>}
             </div>
+            {mode === 'register' && (
+              <div className="flex items-start gap-2">
+                <input id="is-adult" type="checkbox" checked={isAdult} onChange={(e) => setIsAdult(e.target.checked)} required className="mt-0.5 size-4 accent-brand" />
+                <Label htmlFor="is-adult" className="leading-relaxed">Are you 18 or older? I confirm that I am.</Label>
+              </div>
+            )}
             {errors.length > 0 && <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1"><AlertDescription>{errors.join(' ')}</AlertDescription></Alert>}
             <Button type="submit" size="lg" className="h-10" disabled={busy}>
               {busy && <LoaderCircle className="animate-spin" data-icon="inline-start" />}
