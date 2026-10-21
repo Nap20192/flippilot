@@ -1,0 +1,31 @@
+
+body{margin:0}
+.pg-deals{--bg:oklch(1 0 0);--fg:oklch(0.145 0 0);--card:oklch(1 0 0);--muted:oklch(0.97 0 0);--mfg:oklch(0.556 0 0);--border:oklch(0.922 0 0);--input:oklch(0.922 0 0);--primary:oklch(0.205 0 0);--pfg:oklch(0.985 0 0);--side:oklch(0.985 0 0);--ring:oklch(0.708 0 0);--pos:#047857;--pos-bg:#ecfdf5;--neg:oklch(0.577 0.245 27.325);--neg-bg:#fef2f2;--warn:#b45309;--warn-bg:#fffbeb;background:var(--bg);color:var(--fg);font-family:Geist,"Geist Variable",system-ui,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.pg-deals.dark{--bg:oklch(0.145 0 0);--fg:oklch(0.985 0 0);--card:oklch(0.205 0 0);--muted:oklch(0.269 0 0);--mfg:oklch(0.708 0 0);--border:oklch(1 0 0 / 10%);--input:oklch(1 0 0 / 15%);--primary:oklch(0.922 0 0);--pfg:oklch(0.205 0 0);--side:oklch(0.205 0 0);--ring:oklch(0.556 0 0);--pos:#34d399;--pos-bg:rgba(52,211,153,.12);--neg:oklch(0.704 0.191 22.216);--neg-bg:rgba(248,113,113,.12);--warn:#fbbf24;--warn-bg:rgba(251,191,36,.12)}
+.pg-deals a{color:inherit;text-decoration:none}
+.pg-deals .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;font:500 14px/1 Geist,system-ui,sans-serif;border:1px solid transparent;cursor:pointer;white-space:nowrap}
+.pg-deals .btn-sm{height:32px;padding:0 12px;font-size:13px}
+.pg-deals .btn-primary{background:var(--primary);color:var(--pfg)}
+.pg-deals .btn-outline{background:var(--bg);border-color:var(--border);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.pg-deals .btn-outline:hover,.pg-deals .btn-ghost:hover{background:var(--muted)}
+.pg-deals .btn-ghost{background:transparent;color:var(--fg)}
+.pg-deals .badge{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:500;border:1px solid var(--border);white-space:nowrap}
+.pg-deals .b-pos{color:var(--pos);background:var(--pos-bg);border-color:transparent}
+.pg-deals .b-neg{color:var(--neg);background:var(--neg-bg);border-color:transparent}
+.pg-deals .b-warn{color:var(--warn);background:var(--warn-bg);border-color:transparent}
+.pg-deals .num{font-family:"Geist Mono","Geist Mono Variable",ui-monospace,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.pg-deals .nav{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:6px;color:var(--mfg);font-weight:500}
+.pg-deals .nav:hover,.pg-deals .nav.on{background:var(--muted);color:var(--fg)}
+.pg-deals label{display:block;font-size:13px;font-weight:500;margin-bottom:6px}
+.pg-deals input,.pg-deals select{box-sizing:border-box;width:100%;height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--input);background:transparent;color:var(--fg);font:400 14px Geist,system-ui,sans-serif;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.pg-deals input:focus,.pg-deals select:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}
+.pg-deals .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.pg-deals .grp{font-size:12px;font-weight:600;color:var(--mfg);text-transform:uppercase;letter-spacing:.06em}
+.pg-deals table{width:100%;border-collapse:collapse;min-width:820px}
+.pg-deals th{font-size:13px;font-weight:500;color:var(--mfg);text-align:left;padding:10px 16px;border-bottom:1px solid var(--border);white-space:nowrap}
+.pg-deals td{padding:12px 16px;border-bottom:1px solid var(--border)}
+.pg-deals .r{text-align:right}
+.pg-deals summary{list-style:none;cursor:pointer}
+.pg-deals summary::-webkit-details-marker{display:none}
+.pg-deals details[open] .chev{transform:rotate(180deg)}
+.pg-deals svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
