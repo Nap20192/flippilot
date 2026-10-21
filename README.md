@@ -67,6 +67,21 @@ npm start
 
 Полный список эндпоинтов — в [`backend/README.md`](backend/README.md).
 
+## Деплой (Railway)
+
+Проект `flippilot` на Railway подключён к этому репозиторию: каждый пуш в `master` пересобирает и выкатывает то, что изменилось.
+
+| Сервис | Корневая папка | Что собирается | Адрес |
+|---|---|---|---|
+| `flippilot-web` | `web/` | `npm run build`, раздача статики `serve` с запасным `index.html` для маршрутов | https://flippilot-web-production.up.railway.app |
+| `flippilot-api` | `backend/` | `Dockerfile.railway` (копия `Dockerfile` без `VOLUME`, его Railway не принимает) | https://flippilot-api-production.up.railway.app |
+
+- Сервис пересобирается, только если изменились файлы в его папке (watch paths `/web/**` и `/backend/**`).
+- У `flippilot-api` подключён том `/data` (SQLite и фото), проверка здоровья `/healthz`.
+- Переменные `flippilot-api`: `PORT=8080`, `ADDR=:8080`, `DB_PATH=/data/flippilot.db`, `PHOTOS_DIR=/data/photos`, `RAILWAY_RUN_UID=0` (чтобы писать в том), `RAILWAY_DOCKERFILE_PATH=Dockerfile.railway`, при желании `CORS_ORIGINS`.
+- Переменная `flippilot-web`: `VITE_API_URL` с адресом API. Она вшивается при сборке, поэтому после её изменения нужен новый деплой.
+- Ручной выкат без пуша: `npx @railway/cli up --service flippilot-web` из папки `web/`.
+
 ## Тесты
 
 ```bash
