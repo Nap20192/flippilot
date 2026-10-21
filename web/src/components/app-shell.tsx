@@ -41,9 +41,9 @@ function AppSidebar() {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV.map((n, i) => (
-                <SidebarMenuItem key={n.to} className="animate-in fade-in-0 slide-in-from-left-4 fill-mode-both duration-500 motion-reduce:animate-none" style={{ animationDelay: `${80 + i * 55}ms` }}>
-                  <SidebarMenuButton render={<Link to={n.to} />} isActive={pathname === n.to} className="transition-all duration-200 hover:translate-x-0.5">
+              {NAV.map((n) => (
+                <SidebarMenuItem key={n.to}>
+                  <SidebarMenuButton render={<Link to={n.to} />} isActive={pathname === n.to} className="transition-none">
                     <n.icon />
                     <span>{n.label}</span>
                   </SidebarMenuButton>
