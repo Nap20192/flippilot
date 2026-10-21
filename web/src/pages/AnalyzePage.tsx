@@ -1,214 +1,250 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { api, Result, Vehicle } from '../api';
-import { AppFrame, ICONS } from '../components/Shell';
-import { css } from '../css';
-import { pct } from '../format';
-import { useStore } from '../store';
-import './AnalyzePage.css';
+import { CircleAlert, CircleCheck, Save, Star } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { toast } from 'sonner';
+import { api, type Result, type Vehicle } from '@/api';
+import { AnimatedNumber, Reveal } from '@/components/animated';
+import { AppShell, PageHeader } from '@/components/app-shell';
+import { Donut, OfferChart, ScoreGauge } from '@/components/charts';
+import { LevelBadge } from '@/components/level-badge';
+import { SimpleSelect } from '@/components/simple-select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { curSymbol, pct, rateOf, toDisplay } from '@/format';
+import { cn } from '@/lib/utils';
+import { useStore } from '@/store';
 
-const SCEN = ['Conservative', 'Expected', 'Optimistic'] as const;
-const CONDS = ['Excellent', 'Good', 'Fair', 'Poor'] as const;
-const COUNTRIES = [['DE', 'Germany (DE)'], ['AT', 'Austria (AT)'], ['NL', 'Netherlands (NL)'], ['BE', 'Belgium (BE)'], ['PL', 'Poland (PL)']] as const;
-
+type Scen = 'conservative' | 'expected' | 'optimistic';
 type Form = Record<'make' | 'model' | 'year' | 'km' | 'price' | 'resale' | 'transport' | 'repairs' | 'days' | 'desc' | 'url', string> & { engine: string; trans: string; cond: Vehicle['cond']; country: string };
-const toForm = (v: Vehicle): Form => ({
-  make: v.make, model: v.model, year: String(v.year), km: String(v.km), price: String(v.price), resale: v.resale ? String(v.resale) : '',
-  transport: v.transport == null ? '' : String(v.transport), repairs: v.repairs == null ? '' : String(v.repairs), days: String(v.days),
+
+const ENGINES = ['Diesel', 'Petrol', 'Hybrid', 'Electric'].map((v) => ({ value: v, label: v }));
+const TRANS = ['Manual', 'Automatic'].map((v) => ({ value: v, label: v }));
+const CONDS = ['Excellent', 'Good', 'Fair', 'Poor'].map((v) => ({ value: v as Vehicle['cond'], label: v }));
+const COUNTRIES = [['DE', 'Germany (DE)'], ['AT', 'Austria (AT)'], ['NL', 'Netherlands (NL)'], ['BE', 'Belgium (BE)'], ['PL', 'Poland (PL)']].map(([value, label]) => ({ value, label }));
+
+const toForm = (v: Vehicle, rate: number): Form => ({
+  make: v.make, model: v.model, year: String(v.year), km: String(v.km), price: toDisplay(v.price, rate), resale: v.resale ? toDisplay(v.resale, rate) : '',
+  transport: v.transport == null ? '' : toDisplay(v.transport, rate), repairs: v.repairs == null ? '' : toDisplay(v.repairs, rate), days: String(v.days),
   desc: v.desc, url: v.url ?? '', engine: v.engine, trans: v.trans, cond: v.cond, country: v.country,
 });
 const num = (s: string) => { const n = parseFloat(s.replace(/,/g, '')); return Number.isFinite(n) ? n : 0; };
-const toVehicle = (f: Form, base: Vehicle): Vehicle => ({
-  ...base, make: f.make, model: f.model, year: num(f.year), km: num(f.km), price: num(f.price), resale: num(f.resale),
-  transport: f.transport === '' ? null : num(f.transport), repairs: f.repairs === '' ? null : num(f.repairs),
+const toVehicle = (f: Form, base: Vehicle, rate: number): Vehicle => ({
+  ...base, make: f.make, model: f.model, year: num(f.year), km: num(f.km), price: num(f.price) / rate, resale: num(f.resale) / rate,
+  transport: f.transport === '' ? null : num(f.transport) / rate, repairs: f.repairs === '' ? null : num(f.repairs) / rate,
   days: num(f.days) || 45, desc: f.desc, url: f.url, engine: f.engine, trans: f.trans, cond: f.cond, country: f.country,
 });
 
-const tone = (l: string) => (l === 'g' ? 'b-pos' : l === 'r' ? 'b-neg' : l === 'a' ? 'b-warn' : '');
+function F({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
+  return <div className="flex flex-col gap-1.5"><Label htmlFor={id}>{label}</Label>{children}</div>;
+}
 
 export default function AnalyzePage() {
-  const { items, draft, setDraft, money, settings, isWatched, toggleWatch, saveAnalysis } = useStore();
+  const { items, draft, setDraft, money, settings, isWatched, toggleWatch, saveAnalysis, ready } = useStore();
   const base = useMemo(() => items[0]?.vehicle, [items]);
   const [form, setForm] = useState<Form | null>(null);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [res, setRes] = useState<Result | null>(null);
-  const [scen, setScen] = useState<(typeof SCEN)[number]>('Expected');
-  const [note, setNote] = useState('');
+  const [scen, setScen] = useState<Scen>('expected');
+  const rate = rateOf(settings);
+  const sym = curSymbol(settings);
+  const prevRate = useRef(rate);
 
-  useEffect(() => { if (!form && !draft && base) { setVehicle(base); setForm(toForm(base)); } }, [base, form, draft]);
-  useEffect(() => { if (draft) { setVehicle(draft); setForm(toForm(draft)); setDraft(null); setNote(''); } }, [draft, setDraft]);
+  useEffect(() => { if (!form && !draft && base) { setVehicle(base); setForm(toForm(base, rate)); } }, [base, form, draft, rate]);
+  useEffect(() => { if (draft) { setVehicle(draft); setForm(toForm(draft, rate)); setDraft(null); } }, [draft, setDraft, rate]);
+  // switching currency re-expresses the typed amounts instead of leaving stale numbers
+  useEffect(() => {
+    if (prevRate.current === rate) return;
+    const k = rate / prevRate.current;
+    prevRate.current = rate;
+    const conv = (x: string) => (x.trim() === '' ? '' : String(Math.round(num(x) * k * 100) / 100));
+    setForm((f) => (f ? { ...f, price: conv(f.price), resale: conv(f.resale), transport: conv(f.transport), repairs: conv(f.repairs) } : f));
+  }, [rate]);
   useEffect(() => {
     if (!form || !vehicle) return;
-    const v = toVehicle(form, vehicle);
+    const v = toVehicle(form, vehicle, rate);
     if (!(v.price > 0)) { setRes(null); return; }
     let live = true;
     const t = setTimeout(() => { api.analyze(v).then((r) => live && setRes(r)).catch(() => live && setRes(null)); }, 150);
     return () => { live = false; clearTimeout(t); };
-  }, [form, vehicle, settings]);
+  }, [form, vehicle, settings, rate]);
 
-  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => form && setForm({ ...form, [k]: e.target.value });
+  const set = (k: keyof Form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => form && setForm({ ...form, [k]: e.target.value });
+  const pick = <K extends keyof Form>(k: K) => (v: Form[K]) => form && setForm({ ...form, [k]: v });
   const watched = !!vehicle && isWatched(vehicle.id);
-  const c = res && (scen === 'Conservative' ? res.conservative : scen === 'Optimistic' ? res.optimistic : res.expected);
-  const price = form ? num(form.price) : 0;
-  const e = res?.expected;
+  const c = res?.[scen];
+  const price = form ? num(form.price) / rate : 0;
 
-  const rows = res && c && form ? [
-    ['Purchase price', price, 'var(--c1)'], [`Transport ${form.country} → CZ`, res.transport, 'var(--c2)'], ['Registration', res.registration, 'var(--c3)'],
-    [`Repairs${form.repairs === '' ? ' (auto)' : ''}`, c.repairs, 'var(--warn)'], [`Holding, ${res.days} days`, c.hold, 'var(--c4)'], ['Fees & selling', c.fees, 'var(--c5)'],
-  ] as const : [];
-  const top = res ? Math.max(price, res.resale) : 1;
-  const dot = (color: string) => <i style={{ width: 8, height: 8, borderRadius: 2, background: color, display: 'inline-block' }} />;
+  const costs = res && c && form ? [
+    { name: 'Purchase price', value: price, color: 'var(--chart-1)' },
+    { name: `Transport ${form.country} → CZ`, value: res.transport, color: 'var(--chart-2)' },
+    { name: 'Registration', value: res.registration, color: 'var(--chart-5)' },
+    { name: `Repairs${form.repairs === '' ? ' (auto)' : ''}`, value: c.repairs, color: 'var(--chart-3)' },
+    { name: `Holding, ${res.days} days`, value: c.hold, color: 'var(--chart-4)' },
+    { name: 'Fees & selling', value: c.fees, color: 'oklch(0.75 0.02 260)' },
+  ] : [];
+
+  const onSave = async () => { if (form && vehicle) { await saveAnalysis(toVehicle(form, vehicle, rate)); toast.success('Analysis saved'); } };
+  const onWatch = async () => {
+    if (!form || !vehicle) return;
+    const was = watched;
+    await toggleWatch(toVehicle(form, vehicle, rate));
+    toast(was ? 'Removed from watchlist' : 'Added to watchlist', { icon: <Star className="size-4" /> });
+  };
 
   return (
-    <div className="pg-analyze">
-      <AppFrame active="/app/analyze" crumb="Analyze vehicle">
-        <div style={css('padding: 32px; display: flex; flex-direction: column; gap: 24px; max-width: 1240px; box-sizing: border-box; width: 100%;')}>
-          <div style={css('display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;')}>
-            <div>
-              <h1 style={css('margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.03em;')}>Analyze vehicle</h1>
-              <p style={css('margin: 4px 0 0; color: var(--mfg);')}>Enter specs and every number on the right updates live.</p>
-            </div>
-            {vehicle && (
-              <div style={css('display: flex; gap: 8px;')}>
-                <button className="btn btn-outline" type="button" onClick={() => void toggleWatch(form ? toVehicle(form, vehicle) : vehicle)}>
-                  <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">{ICONS.star}</svg>{watched ? 'On watchlist' : 'Add to watchlist'}
-                </button>
-                <button className="btn btn-primary" type="button" onClick={() => { if (form) { void saveAnalysis(toVehicle(form, vehicle)); setNote('Analysis saved'); setTimeout(() => setNote(''), 2500); } }}>
-                  {note || 'Save analysis'}
-                </button>
-              </div>
-            )}
+    <AppShell title="Analyze vehicle">
+      <PageHeader title="Analyze vehicle" description="Enter specs and every number on the right updates live."
+        actions={vehicle ? <>
+          <Button variant="outline" onClick={() => void onWatch()}><Star data-icon="inline-start" className={cn(watched && 'fill-current')} />{watched ? 'On watchlist' : 'Add to watchlist'}</Button>
+          <Button onClick={() => void onSave()}><Save data-icon="inline-start" />Save analysis</Button>
+        </> : null} />
+
+      {!ready || !form ? (
+        <div className="grid gap-5 lg:grid-cols-[400px_1fr]"><div className="h-[640px] animate-pulse rounded-xl bg-muted" /><div className="h-[640px] animate-pulse rounded-xl bg-muted" /></div>
+      ) : (
+        <div className="grid items-start gap-5 lg:grid-cols-[400px_minmax(0,1fr)]">
+          <div className="order-2 lg:order-1">
+            <Reveal>
+              <Card>
+                <CardHeader><CardTitle>Vehicle details</CardTitle><CardDescription>Listing import isn’t connected yet. Enter the specs manually.</CardDescription></CardHeader>
+                <CardContent>
+                  <form className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()} aria-label="Vehicle details">
+                    <F id="url" label="Listing URL (optional)"><Input id="url" placeholder="https://www.mobile.de/…" value={form.url} onChange={set('url')} /></F>
+                    <div className="grid grid-cols-2 gap-3">
+                      <F id="make" label="Manufacturer"><Input id="make" value={form.make} onChange={set('make')} /></F>
+                      <F id="model" label="Model"><Input id="model" value={form.model} onChange={set('model')} /></F>
+                      <F id="year" label="Year"><Input id="year" className="num" inputMode="numeric" value={form.year} onChange={set('year')} /></F>
+                      <F id="km" label="Mileage (km)"><Input id="km" className="num" inputMode="numeric" value={form.km} onChange={set('km')} /></F>
+                      <F id="eng" label="Engine"><SimpleSelect id="eng" value={form.engine} options={ENGINES} onValueChange={pick('engine')} className="w-full" /></F>
+                      <F id="tr" label="Transmission"><SimpleSelect id="tr" value={form.trans} options={TRANS} onValueChange={pick('trans')} className="w-full" /></F>
+                      <F id="cond" label="Condition"><SimpleSelect id="cond" value={form.cond} options={CONDS} onValueChange={pick('cond')} className="w-full" /></F>
+                      <F id="ctry" label="Purchase country"><SimpleSelect id="ctry" value={form.country} options={COUNTRIES} onValueChange={pick('country')} className="w-full" /></F>
+                    </div>
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-3">
+                      <F id="price" label={`Purchase price (${sym})`}><Input id="price" className="num" inputMode="decimal" value={form.price} onChange={set('price')} /></F>
+                      <F id="resale" label={`Expected resale in CZ (${sym})`}><Input id="resale" className="num" inputMode="decimal" placeholder="Estimate" value={form.resale} onChange={set('resale')} /></F>
+                      <F id="tp" label={`Transport (${sym})`}><Input id="tp" className="num" inputMode="decimal" placeholder="Default by country" value={form.transport} onChange={set('transport')} /></F>
+                      <F id="rep" label={`Repairs (${sym})`}><Input id="rep" className="num" inputMode="decimal" placeholder="Auto estimate" value={form.repairs} onChange={set('repairs')} /></F>
+                      <F id="days" label="Days to sell"><Input id="days" className="num" inputMode="numeric" value={form.days} onChange={set('days')} /></F>
+                    </div>
+                    <F id="desc" label="Description">
+                      <Textarea id="desc" rows={3} value={form.desc} onChange={set('desc')} />
+                      <p className="text-xs text-muted-foreground">Warning terms like “Unfall”, “defekt” or “export” raise the risk score.</p>
+                    </F>
+                  </form>
+                </CardContent>
+              </Card>
+            </Reveal>
           </div>
 
-          {form && (
-            <div style={css('display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 24px; align-items: start;')}>
-              <form className="card" style={css('padding: 24px; display: flex; flex-direction: column; gap: 20px;')} aria-label="Vehicle details" onSubmit={(ev) => ev.preventDefault()}>
-                <div>
-                  <h2 style={css('margin: 0; font-size: 16px; font-weight: 600;')}>Vehicle details</h2>
-                  <p style={css('margin: 2px 0 0; color: var(--mfg); font-size: 13px;')}>Listing import isn’t connected yet. Enter the specs manually.</p>
-                </div>
-                <div><label htmlFor="url">Listing URL (optional)</label><input id="url" placeholder="https://www.mobile.de/…" value={form.url} onChange={set('url')} /></div>
-                <div style={css('display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;')}>
-                  <div><label htmlFor="make">Manufacturer</label><input id="make" value={form.make} onChange={set('make')} /></div>
-                  <div><label htmlFor="model">Model</label><input id="model" value={form.model} onChange={set('model')} /></div>
-                  <div><label htmlFor="year">Year</label><input id="year" className="num" inputMode="numeric" value={form.year} onChange={set('year')} /></div>
-                  <div><label htmlFor="km">Mileage (km)</label><input id="km" className="num" inputMode="numeric" value={form.km} onChange={set('km')} /></div>
-                  <div><label htmlFor="eng">Engine</label><select id="eng" value={form.engine} onChange={set('engine')}>{['Diesel', 'Petrol', 'Hybrid', 'Electric'].map((o) => <option key={o}>{o}</option>)}</select></div>
-                  <div><label htmlFor="tr">Transmission</label><select id="tr" value={form.trans} onChange={set('trans')}>{['Manual', 'Automatic'].map((o) => <option key={o}>{o}</option>)}</select></div>
-                  <div><label htmlFor="cond">Condition</label><select id="cond" value={form.cond} onChange={set('cond')}>{CONDS.map((o) => <option key={o}>{o}</option>)}</select></div>
-                  <div><label htmlFor="ctry">Purchase country</label><select id="ctry" value={form.country} onChange={set('country')}>{COUNTRIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-                </div>
-                <div style={css('height: 1px; background: var(--border);')} />
-                <div style={css('display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;')}>
-                  <div><label htmlFor="price">Purchase price (€)</label><input id="price" className="num" inputMode="decimal" value={form.price} onChange={set('price')} /></div>
-                  <div><label htmlFor="resale">Expected resale in CZ (€)</label><input id="resale" className="num" inputMode="decimal" placeholder="Estimate" value={form.resale} onChange={set('resale')} /></div>
-                  <div><label htmlFor="tp">Transport (€)</label><input id="tp" className="num" inputMode="decimal" placeholder="Default by country" value={form.transport} onChange={set('transport')} /></div>
-                  <div><label htmlFor="rep">Repairs (€)</label><input id="rep" className="num" inputMode="decimal" placeholder="Auto estimate" value={form.repairs} onChange={set('repairs')} /></div>
-                  <div><label htmlFor="days">Days to sell</label><input id="days" className="num" inputMode="numeric" value={form.days} onChange={set('days')} /></div>
-                </div>
-                <div>
-                  <label htmlFor="desc">Description</label>
-                  <textarea id="desc" rows={3} value={form.desc} onChange={set('desc')} />
-                  <p style={css('margin: 6px 0 0; font-size: 12px; color: var(--mfg);')}>Warning terms like “Unfall”, “defekt” or “export” raise the risk score.</p>
-                </div>
-              </form>
-
-              <div style={css('display: flex; flex-direction: column; gap: 16px; min-width: 0;')}>
-                {!res || !c || !e ? (
-                  <div className="card" style={css('padding: 24px; color: var(--mfg);')}>Enter a purchase price to see the analysis.</div>
-                ) : (
-                  <>
-                    <section className="card" style={css('padding: 24px; display: flex; flex-direction: column; gap: 20px;')} aria-label="Result">
-                      <div style={css('display: flex; gap: 24px; align-items: center; flex-wrap: wrap;')}>
-                        <div style={css('position: relative; width: 132px; flex: none;')}>
-                          <svg viewBox="0 0 120 70" width="132" role="img" aria-label={`Deal score ${res.score} out of 100`}>
-                            <path d="M10 62A50 50 0 0 1 110 62" fill="none" stroke="var(--muted)" strokeWidth="9" strokeLinecap="round" />
-                            <path d="M10 62A50 50 0 0 1 110 62" fill="none" stroke={res.score >= 70 ? 'var(--pos)' : res.score >= 50 ? 'var(--blue)' : res.score >= 30 ? 'var(--warn)' : 'var(--neg)'} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${Math.max(0.1, res.score) * 1.57} 157`} />
-                          </svg>
-                          <div className="num" style={css('position: absolute; left: 0; right: 0; top: 30px; text-align: center; font-size: 30px; font-weight: 600; letter-spacing: -0.03em;')}>{res.score}</div>
-                          <div style={css('text-align: center; margin-top: 4px;')}><span className={'badge ' + tone(res.verdict.level)}>{res.verdict.label}</span></div>
-                        </div>
-                        <div style={css('flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 4px;')}>
-                          <span style={css('color: var(--mfg); font-size: 13px;')}>Net profit · {scen.toLowerCase()}</span>
-                          <span className="num" style={{ ...css('font-size: 40px; font-weight: 600; letter-spacing: -0.04em; line-height: 1.1;'), color: c.net >= 0 ? 'var(--pos)' : 'var(--neg)' }}>{money(c.net)}</span>
-                          <span style={css('color: var(--mfg); font-size: 13px;')}><span className="num">{pct(c.roi)}</span> ROI on <span className="num">{money(c.cost)}</span> all-in · Risk <span className={'badge ' + tone(res.riskLevel.level)} style={css('height: 20px;')}>{res.riskLevel.label}</span></span>
+          <div className="order-1 flex min-w-0 flex-col gap-5 lg:order-2">
+            {!res || !c ? (
+              <Card><CardContent className="py-10 text-center text-muted-foreground">Enter a purchase price to see the analysis.</CardContent></Card>
+            ) : (
+              <>
+                <Reveal>
+                  <Card>
+                    <CardContent className="flex flex-col gap-5">
+                      <div className="flex flex-wrap items-center gap-6">
+                        <div className="flex flex-col items-center gap-2"><ScoreGauge score={res.score} /><LevelBadge level={res.verdict.level}>{res.verdict.label}</LevelBadge></div>
+                        <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+                          <span className="text-sm text-muted-foreground">Net profit · {scen}</span>
+                          <AnimatedNumber value={c.net} format={money} duration={700} className={cn('num text-4xl font-semibold tracking-tight md:text-5xl', c.net >= 0 ? 'text-pos' : 'text-destructive')} />
+                          <span className="text-sm text-muted-foreground"><span className="num">{pct(c.roi)}</span> ROI on <span className="num">{money(c.cost)}</span> all-in · Risk <LevelBadge level={res.riskLevel.level}>{res.riskLevel.label}</LevelBadge></span>
                         </div>
                       </div>
-                      <div role="tablist" aria-label="Scenario" style={css('display: flex; gap: 4px; padding: 3px; background: var(--muted); border-radius: 9px;')}>
-                        {SCEN.map((s) => (
-                          <button key={s} type="button" role="tab" aria-selected={s === scen} className={s === scen ? 'tab on' : 'tab'} onClick={() => setScen(s)}>{s}</button>
-                        ))}
-                      </div>
+                      <Tabs value={scen} onValueChange={(v) => setScen(v as Scen)}>
+                        <TabsList className="w-full"><TabsTrigger value="conservative">Conservative</TabsTrigger><TabsTrigger value="expected">Expected</TabsTrigger><TabsTrigger value="optimistic">Optimistic</TabsTrigger></TabsList>
+                      </Tabs>
                       {price > res.maxPrice ? (
-                        <div style={css('display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: var(--warn-bg); color: var(--fg); font-size: 13px;')}>
-                          <svg className="ic" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'var(--warn)', marginTop: 2 }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
-                          <span>Asking price is <b className="num">{money(price - res.maxPrice)}</b> above the <b className="num">{money(res.maxPrice)}</b> limit for a {settings.target}% target ROI. Negotiate or pass.</span>
-                        </div>
+                        <Alert className="bg-warn-muted text-foreground"><CircleAlert className="text-warn" /><AlertDescription className="text-foreground">Asking price is <b className="num">{money(price - res.maxPrice)}</b> above the <b className="num">{money(res.maxPrice)}</b> limit for a {settings.target}% target ROI. Negotiate or pass.</AlertDescription></Alert>
                       ) : (
-                        <div style={css('display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: var(--pos-bg); color: var(--fg); font-size: 13px;')}>
-                          <svg className="ic" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'var(--pos)', marginTop: 2 }}><path d="M20 6 9 17l-5-5" /></svg>
-                          <span>Asking price leaves <b className="num">{money(res.maxPrice - price)}</b> of headroom below the <b className="num">{money(res.maxPrice)}</b> limit.</span>
-                        </div>
+                        <Alert className="bg-pos-muted"><CircleCheck className="text-pos" /><AlertDescription className="text-foreground">Asking price leaves <b className="num">{money(res.maxPrice - price)}</b> of headroom below the <b className="num">{money(res.maxPrice)}</b> limit.</AlertDescription></Alert>
                       )}
-                    </section>
+                    </CardContent>
+                  </Card>
+                </Reveal>
 
-                    <div style={css('display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;')}>
-                      <section className="card" style={css('padding: 20px;')}>
-                        <h3 style={css('margin: 0 0 14px; font-size: 15px; font-weight: 600;')}>Cost breakdown</h3>
-                        <div style={css('display: flex; height: 8px; border-radius: 99px; overflow: hidden; gap: 2px; margin-bottom: 8px;')}>
-                          {rows.map(([l, v, col]) => <div key={l} style={{ width: `${(v / c.cost) * 100}%`, background: col }} />)}
+                <div className="grid gap-5 md:grid-cols-2">
+                  <Reveal delay={60}>
+                    <Card className="h-full">
+                      <CardHeader><CardTitle>Cost breakdown</CardTitle></CardHeader>
+                      <CardContent className="flex flex-col items-center gap-4">
+                        <Donut slices={costs} center={money(c.cost)} sub="all-in" />
+                        <div className="flex w-full flex-col gap-2 text-sm">
+                          {costs.map((x) => <div key={x.name} className="flex items-center justify-between gap-3"><span className="flex items-center gap-2"><i className="size-2 rounded-sm" style={{ background: x.color }} />{x.name}</span><span className="num">{money(x.value)}</span></div>)}
+                          <Separator />
+                          <div className="flex justify-between font-semibold"><span>Total cost</span><span className="num">{money(c.cost)}</span></div>
                         </div>
-                        {rows.map(([l, v, col]) => (
-                          <div className="row" key={l}><span style={css('display: flex; gap: 8px; align-items: center;')}>{dot(col)}{l}</span><span className="num">{money(v)}</span></div>
-                        ))}
-                        <div className="row" style={css('border-bottom: 0; font-weight: 600;')}><span>Total cost</span><span className="num">{money(c.cost)}</span></div>
-                      </section>
-                      <section className="card" style={css('padding: 20px; display: flex; flex-direction: column; gap: 12px;')}>
-                        <h3 style={css('margin: 0 0 2px; font-size: 15px; font-weight: 600;')}>Purchase vs resale</h3>
-                        <div>
-                          <div style={css('display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;')}><span style={css('color: var(--mfg);')}>Buy · {form.country}</span><span className="num">{money(price)}</span></div>
-                          <div style={css('height: 8px; border-radius: 99px; background: var(--muted);')}><div style={{ width: `${(price / top) * 100}%`, height: '100%', borderRadius: 99, background: 'var(--c2)' }} /></div>
-                        </div>
-                        <div>
-                          <div style={css('display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;')}><span style={css('color: var(--mfg);')}>Sell · Czechia</span><span className="num">{money(c.resale)}</span></div>
-                          <div style={css('height: 8px; border-radius: 99px; background: var(--muted);')}><div style={{ width: `${(c.resale / top) * 100}%`, height: '100%', borderRadius: 99, background: 'var(--pos)' }} /></div>
-                        </div>
-                        <div className="row" style={css('margin-top: 4px;')}><span>Gross spread</span><span className="num">{money(c.resale - price)}</span></div>
-                        <div className="row" style={css('border-bottom: 0;')}><span>Max purchase price</span><span className="num" style={css('font-weight: 600;')}>{money(res.maxPrice)}</span></div>
-                        <p style={css('margin: 0; font-size: 12px; color: var(--mfg);')}>For a {settings.target}% target ROI. Change the target in Settings.</p>
-                      </section>
-                    </div>
+                      </CardContent>
+                    </Card>
+                  </Reveal>
+                  <Reveal delay={120}>
+                    <Card className="h-full">
+                      <CardHeader><CardTitle>Purchase vs resale</CardTitle></CardHeader>
+                      <CardContent className="flex flex-col gap-4 text-sm">
+                        {[{ label: `Buy · ${form.country}`, v: price, cls: 'bg-chart-1' }, { label: 'Sell · Czechia', v: c.resale, cls: 'bg-pos' }].map((b) => {
+                          const top = Math.max(price, c.resale) || 1;
+                          return <div key={b.label}><div className="mb-1.5 flex justify-between"><span className="text-muted-foreground">{b.label}</span><span className="num">{money(b.v)}</span></div><div className="h-2 rounded-full bg-muted"><div className={cn('h-full rounded-full transition-all duration-700', b.cls)} style={{ width: `${(b.v / top) * 100}%` }} /></div></div>;
+                        })}
+                        <Separator />
+                        <div className="flex justify-between"><span className="text-muted-foreground">Gross spread</span><span className="num">{money(c.resale - price)}</span></div>
+                        <div className="flex justify-between font-semibold"><span>Max purchase price</span><span className="num">{money(res.maxPrice)}</span></div>
+                        <p className="text-xs text-muted-foreground">For a {settings.target}% target ROI. Change the target in Settings.</p>
+                      </CardContent>
+                    </Card>
+                  </Reveal>
+                </div>
 
-                    <section className="card" style={css('padding: 20px 20px 8px;')}>
-                      <h3 style={css('margin: 0 0 6px; font-size: 15px; font-weight: 600;')}>Scenarios</h3>
-                      <div style={css('overflow-x: auto;')}>
-                        <table>
-                          <thead><tr><th scope="col"><span style={css('position: absolute; left: -9999px;')}>Metric</span></th><th scope="col">Conservative</th><th scope="col">Expected</th><th scope="col">Optimistic</th></tr></thead>
-                          <tbody>
-                            <tr><td>Resale value</td>{[res.conservative, e, res.optimistic].map((k, i) => <td key={i} className="num">{money(k.resale)}</td>)}</tr>
-                            <tr><td>Repairs</td>{[res.conservative, e, res.optimistic].map((k, i) => <td key={i} className="num">{money(k.repairs)}</td>)}</tr>
-                            <tr><td>Net profit</td>{[res.conservative, e, res.optimistic].map((k, i) => <td key={i} className="num" style={{ color: k.net >= 0 ? 'var(--pos)' : 'var(--neg)', fontWeight: 600 }}>{money(k.net)}</td>)}</tr>
-                            <tr><td style={{ borderBottom: 0 }}>ROI</td>{[res.conservative, e, res.optimistic].map((k, i) => <td key={i} className="num" style={{ borderBottom: 0 }}>{pct(k.roi)}</td>)}</tr>
-                          </tbody>
-                        </table>
-                      </div>
-                      <p style={css('margin: 8px 0 12px; font-size: 12px; color: var(--mfg);')}>Conservative: resale −6%, repairs +40%, 50% longer to sell. Optimistic: resale +4%, repairs −20%, 30% faster.</p>
-                    </section>
+                <Reveal>
+                  <Card>
+                    <CardHeader><CardTitle>What should I offer?</CardTitle><CardDescription>Every €1 off the purchase price is €1 of profit.</CardDescription></CardHeader>
+                    <CardContent><OfferChart asking={price} net={res.expected.net} target={Math.max(0, res.maxPrice)} format={money} /></CardContent>
+                  </Card>
+                </Reveal>
 
-                    <section className="card" style={css('padding: 20px;')}>
-                      <h3 style={css('margin: 0 0 6px; font-size: 15px; font-weight: 600;')}>Risk assessment</h3>
+                <Reveal>
+                  <Card>
+                    <CardHeader><CardTitle>Scenarios</CardTitle></CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <Table>
+                        <TableHeader><TableRow><TableHead /><TableHead className="text-right">Conservative</TableHead><TableHead className="text-right">Expected</TableHead><TableHead className="text-right">Optimistic</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          {([['Resale value', (k: Result['expected']) => money(k.resale)], ['Repairs', (k: Result['expected']) => money(k.repairs)], ['Net profit', (k: Result['expected']) => money(k.net)], ['ROI', (k: Result['expected']) => pct(k.roi)]] as const).map(([label, fn]) => (
+                            <TableRow key={label}>
+                              <TableCell className="text-muted-foreground">{label}</TableCell>
+                              {[res.conservative, res.expected, res.optimistic].map((k, i) => <TableCell key={i} className={cn('num text-right', label === 'Net profit' && 'font-semibold', label === 'Net profit' && (k.net >= 0 ? 'text-pos' : 'text-destructive'))}>{fn(k)}</TableCell>)}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <p className="mt-3 text-xs text-muted-foreground">Conservative: resale −6%, repairs +40%, 50% longer to sell. Optimistic: resale +4%, repairs −20%, 30% faster.</p>
+                    </CardContent>
+                  </Card>
+                </Reveal>
+
+                <Reveal>
+                  <Card>
+                    <CardHeader><CardTitle>Risk assessment</CardTitle></CardHeader>
+                    <CardContent className="flex flex-col divide-y">
                       {res.risk.map((r, i) => (
-                        <div className="row" key={i} style={i === res.risk.length - 1 ? { borderBottom: 0 } : undefined}>
-                          <span>{r.text}</span><span className={'badge ' + tone(r.level)}>{r.level === 'r' ? 'Risk' : r.level === 'a' ? 'Watch' : 'OK'}</span>
-                        </div>
+                        <div key={i} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"><span>{r.text}</span><LevelBadge level={r.level}>{r.level === 'r' ? 'Risk' : r.level === 'a' ? 'Watch' : 'OK'}</LevelBadge></div>
                       ))}
-                    </section>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
+                    </CardContent>
+                  </Card>
+                </Reveal>
+              </>
+            )}
+          </div>
         </div>
-      </AppFrame>
-    </div>
+      )}
+    </AppShell>
   );
 }

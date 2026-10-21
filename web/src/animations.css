@@ -1,0 +1,216 @@
+/* Motion system: one easing, short durations, everything disabled for prefers-reduced-motion. */
+:root {
+  --ease: cubic-bezier(.2, .7, .3, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+}
+html { scroll-behavior: smooth; }
+
+@keyframes pageIn { from { opacity: 0; transform: translateY(10px); } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(14px); } }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes growX { from { transform: scaleX(0); } }
+@keyframes barUp { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
+@keyframes barDown { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+@keyframes drawLine { from { stroke-dashoffset: 2000; } to { stroke-dashoffset: 0; } }
+@keyframes spinIn { from { opacity: 0; transform: rotate(-50deg) scale(.88); } }
+@keyframes popIn { from { opacity: 0; transform: scale(.92); } }
+@keyframes floaty { 50% { transform: translateY(-6px); } }
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes pulseDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(4, 120, 87, .45); } 50% { box-shadow: 0 0 0 6px rgba(4, 120, 87, 0); } }
+
+/* ---------- page & content entrance ---------- */
+[class*="pg-"] main { animation: pageIn .45s var(--ease) both; }
+[class*="pg-"] main > *,
+[class*="pg-"] main > div > * { animation: riseIn .55s var(--ease) both; }
+[class*="pg-"] main > :nth-child(1), [class*="pg-"] main > div > :nth-child(1) { animation-delay: .02s; }
+[class*="pg-"] main > :nth-child(2), [class*="pg-"] main > div > :nth-child(2) { animation-delay: .07s; }
+[class*="pg-"] main > :nth-child(3), [class*="pg-"] main > div > :nth-child(3) { animation-delay: .12s; }
+[class*="pg-"] main > :nth-child(4), [class*="pg-"] main > div > :nth-child(4) { animation-delay: .17s; }
+[class*="pg-"] main > :nth-child(5), [class*="pg-"] main > div > :nth-child(5) { animation-delay: .22s; }
+[class*="pg-"] main > :nth-child(n+6), [class*="pg-"] main > div > :nth-child(n+6) { animation-delay: .27s; }
+/* cards inside grids cascade */
+[class*="pg-"] main [style*="grid-template-columns"] > :nth-child(1) { animation: riseIn .55s var(--ease) .10s both; }
+[class*="pg-"] main [style*="grid-template-columns"] > :nth-child(2) { animation: riseIn .55s var(--ease) .16s both; }
+[class*="pg-"] main [style*="grid-template-columns"] > :nth-child(3) { animation: riseIn .55s var(--ease) .22s both; }
+[class*="pg-"] main [style*="grid-template-columns"] > :nth-child(4) { animation: riseIn .55s var(--ease) .28s both; }
+[class*="pg-"] main [style*="grid-template-columns"] > :nth-child(n+5) { animation: riseIn .55s var(--ease) .32s both; }
+
+/* ---------- charts ---------- */
+[style*="height: 100%"][style*="border-radius: 99px"],
+[style*="border-radius: 3px"][style*="flex:"],
+[style*="border-radius: 7px"][style*="width:"] { transform-origin: left center; animation: growX .9s var(--ease) .25s both; }
+[style*="left: 14%"][style*="right: 14%"] { animation: barUp .8s var(--ease) .3s both; }
+[style*="left: 14%"][style*="var(--neg)"] { animation: barDown .8s var(--ease) .3s both; }
+[style*="grid-template-columns: 118px 1fr 66px"]:nth-child(1) { animation: riseIn .5s var(--ease) .15s both; }
+[style*="grid-template-columns: 118px 1fr 66px"]:nth-child(2) { animation: riseIn .5s var(--ease) .20s both; }
+[style*="grid-template-columns: 118px 1fr 66px"]:nth-child(3) { animation: riseIn .5s var(--ease) .25s both; }
+[style*="grid-template-columns: 118px 1fr 66px"]:nth-child(4) { animation: riseIn .5s var(--ease) .30s both; }
+[style*="grid-template-columns: 118px 1fr 66px"]:nth-child(5) { animation: riseIn .5s var(--ease) .35s both; }
+[style*="grid-template-columns: 118px 1fr 66px"]:nth-child(n+6) { animation: riseIn .5s var(--ease) .4s both; }
+svg[aria-label="Cost structure donut chart"] { animation: spinIn 1s var(--ease) .3s both; }
+svg[aria-label^="Line chart"] path[stroke="#2563eb"] { stroke-dasharray: 2000; animation: drawLine 1.5s var(--ease) .4s both; }
+svg[aria-label^="Line chart"] path[fill="url(#area)"], svg[aria-label^="Line chart"] circle { animation: fadeIn .8s ease 1.1s both; }
+svg[aria-label^="Deal score"] path:nth-child(2), svg[aria-label^="Chart"] path { transition: stroke-dasharray .8s var(--ease); }
+.hc-gauge svg path:nth-child(2), [role="img"][aria-label^="Deal score"] svg path:nth-child(2) { transition: stroke-dasharray .9s var(--ease), stroke .4s; }
+
+/* ---------- interactions (hover only on devices that can hover) ---------- */
+[class*="pg-"] .btn, [class*="pg-"] .nav, [class*="pg-"] .tab, [class*="pg-"] .card, [class*="pg-"] input, [class*="pg-"] select, [class*="pg-"] textarea,
+[class*="pg-"] a, [class*="pg-"] button, .hc-buttons button, .pg-login .submit {
+  transition: transform .22s var(--ease), box-shadow .25s var(--ease), background-color .18s ease, border-color .18s ease, color .18s ease, opacity .2s ease;
+}
+[class*="pg-"] .btn:active, .hc-buttons button:active, .pg-login .submit:active { transform: scale(.97); }
+[class*="pg-"] .nav svg { transition: transform .22s var(--ease), color .18s ease; }
+[class*="pg-"] .nav.on svg { color: var(--blue, #2563eb); }
+[class*="pg-"] .pill, [class*="pg-"] .badge { animation: popIn .4s var(--ease-spring) .15s both; }
+[class*="pg-"] tbody tr { transition: background-color .15s ease; }
+[class*="pg-"] .tab.on, [class*="pg-"] .seg button.on { animation: popIn .25s var(--ease) both; }
+[class*="pg-"] .chev { transition: transform .25s var(--ease); }
+[class*="pg-"] details[open] > div { animation: fadeIn .3s ease both; }
+[class*="pg-"] input:focus, [class*="pg-"] select:focus, [class*="pg-"] textarea:focus { transition-duration: .12s; }
+.pg-login .box { animation: riseIn .6s var(--ease) .05s both; }
+.pg-login .brand, .pg-login .foot { animation: fadeIn .8s ease .2s both; }
+
+@media (hover: hover) {
+  [class*="pg-"] .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px -6px rgba(0, 0, 0, .25); }
+  [class*="pg-"] .btn-p:hover, [class*="pg-"] .btn.btn-primary:hover { box-shadow: 0 8px 22px -8px rgba(37, 99, 235, .55); }
+  [class*="pg-"] .nav:hover svg { transform: translateX(2px) scale(1.08); }
+  [class*="pg-"] div.card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rgba(0, 0, 0, .22); border-color: color-mix(in oklab, var(--border, #e5e5e5) 55%, var(--blue, #2563eb)); }
+  [class*="pg-"] section.card:hover { box-shadow: 0 10px 26px -16px rgba(0, 0, 0, .2); }
+  [class*="pg-"] tbody tr:hover { background: color-mix(in oklab, var(--muted, #f5f5f5) 70%, transparent); }
+  .pg-landing [style*="border-radius: 12px"][style*="padding: 24px"]:hover,
+  .pg-landing [style*="border-radius: 14px"][style*="padding: 18px"]:hover { transform: translateY(-3px); box-shadow: 0 16px 34px -18px rgba(37, 99, 235, .35); border-color: color-mix(in oklab, var(--border) 50%, var(--blue)); }
+  .pg-landing a[href="/app/analyze"]:hover svg { transform: translateX(3px); }
+  .hc-buttons button:hover { transform: translateY(-1px); }
+  .pg-login .submit:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, .4); }
+}
+.pg-landing .btn svg { transition: transform .22s var(--ease); }
+
+/* ---------- landing: floating hero card, live dot, scroll reveal ---------- */
+.hc { animation: riseIn .7s var(--ease) .25s both, floaty 7s ease-in-out 1.2s infinite; }
+.hc:hover { animation-play-state: running, paused; }
+.pg-landing h1.hero { animation: riseIn .7s var(--ease) .1s both; }
+.pg-landing section:first-of-type [style*="width: 6px"][style*="border-radius: 99px"] { animation: pulseDot 2.2s ease-in-out infinite; }
+.pg-landing header { animation: fadeIn .6s ease both; }
+.rv { animation: none !important; opacity: 0; transform: translateY(28px); transition: opacity .7s var(--ease), transform .7s var(--ease); transition-delay: var(--rv-delay, 0ms); will-change: opacity, transform; }
+.rv.rv-in { opacity: 1; transform: none; }
+
+/* ---------- loading bar ---------- */
+.load-bar { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 100; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity .25s ease; }
+.load-bar.on { opacity: 1; }
+.load-bar::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, #2563eb, transparent); animation: shimmer 1.1s ease-in-out infinite; }
+
+/* mobile tab bar: tactile press */
+@media (max-width: 860px) {
+  [class*="pg-"] aside .nav:active { transform: scale(.94); }
+  [class*="pg-"] aside .nav.on { background: color-mix(in oklab, var(--blue, #2563eb) 10%, transparent) !important; }
+  [class*="pg-"] aside .nav.on svg { transform: translateY(-1px) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .rv { opacity: 1; transform: none; }
+}
+
+/* =====================================================================
+   Layer 2: every element gets an entrance. Lives in a cascade layer so the
+   specific chart/hero animations above (unlayered) always win over it.
+   ===================================================================== */
+@keyframes slideRowIn { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes slideInLeft { from { opacity: 0; transform: translateX(-22px); } }
+@keyframes slideInUp { from { opacity: 0; transform: translateY(24px); } }
+@keyframes growY { from { transform: scaleY(0); } }
+@keyframes sheen { to { background-position: -200% 0; } }
+@keyframes carIn { from { opacity: 0; transform: translateX(46px) scale(.94); } }
+@keyframes kenburns { from { transform: scale(1.06); } }
+@keyframes dots { to { background-position: 0 0, 24px 24px; } }
+@keyframes glowDrift { 0%, 100% { background-position: 0 0, 0 0; } 50% { background-position: -30px 20px, 0 0; } }
+@keyframes icoPop { from { opacity: 0; transform: scale(.6) rotate(-12deg); } }
+@keyframes boltPulse { 0%, 100% { filter: drop-shadow(0 0 0 rgba(37, 99, 235, 0)); } 50% { filter: drop-shadow(0 0 7px rgba(37, 99, 235, .55)); } }
+@keyframes shine { from { left: -60%; } to { left: 130%; } }
+
+@layer anim-base {
+  [class*="pg-"] main :nth-child(1) { --st: 0; }
+  [class*="pg-"] main :nth-child(2) { --st: 1; }
+  [class*="pg-"] main :nth-child(3) { --st: 2; }
+  [class*="pg-"] main :nth-child(4) { --st: 3; }
+  [class*="pg-"] main :nth-child(5) { --st: 4; }
+  [class*="pg-"] main :nth-child(6) { --st: 5; }
+  [class*="pg-"] main :nth-child(7) { --st: 6; }
+  [class*="pg-"] main :nth-child(8) { --st: 7; }
+  [class*="pg-"] main :nth-child(9) { --st: 8; }
+  [class*="pg-"] main :nth-child(10) { --st: 9; }
+  [class*="pg-"] main :nth-child(11) { --st: 10; }
+  [class*="pg-"] main :nth-child(n+12) { --st: 11; }
+
+  [class*="pg-"] main :is(h1, h2, h3, h4, p, label, input, select, textarea, button, summary, .badge, .pill, .row, img, [style*="justify-content: space-between"]) {
+    animation: riseIn .5s var(--ease) calc(.16s + var(--st, 0) * 40ms) both;
+  }
+  [class*="pg-"] main tbody tr { animation: slideRowIn .5s var(--ease) calc(.2s + var(--st, 0) * 45ms) both; }
+  [class*="pg-"] main :is(.ico, svg.ic) { animation: icoPop .5s var(--ease-spring) calc(.25s + var(--st, 0) * 40ms) both; }
+  [class*="pg-"] main [style*="border-radius: 10px"][style*="padding: 10px 12px"],
+  [class*="pg-"] main [style*="border-radius: 10px"][style*="padding: 12px 14px"] { animation: popIn .5s var(--ease-spring) calc(.3s + var(--st, 0) * 60ms) both; }
+}
+
+/* ---------- first visit: sidebar and nav slide in ---------- */
+html.first-load [class*="pg-"] aside { animation: slideInLeft .6s var(--ease) both; }
+html.first-load [class*="pg-"] aside .nav { animation: slideInLeft .55s var(--ease) calc(.12s + var(--ni, 0) * 55ms) both; }
+html.first-load [class*="pg-"] aside .nav:nth-of-type(1) { --ni: 0; }
+html.first-load [class*="pg-"] aside .nav:nth-of-type(2) { --ni: 1; }
+html.first-load [class*="pg-"] aside .nav:nth-of-type(3) { --ni: 2; }
+html.first-load [class*="pg-"] aside .nav:nth-of-type(4) { --ni: 3; }
+html.first-load [class*="pg-"] aside .nav:nth-of-type(5) { --ni: 4; }
+html.first-load [class*="pg-"] aside .nav:nth-of-type(6) { --ni: 5; }
+[class*="pg-"] aside > a:first-child svg { transition: transform .35s var(--ease-spring); }
+[class*="pg-"] aside > a:first-child svg path:last-child { animation: boltPulse 3.6s ease-in-out infinite; }
+@media (hover: hover) { [class*="pg-"] aside > a:first-child:hover svg, .m-top .m-brand:hover svg { transform: rotate(-8deg) scale(1.12); } }
+/* active nav marker grows in */
+[class*="pg-"] aside .nav { position: relative; }
+[class*="pg-"] aside .nav.on::before { content: ""; position: absolute; left: -6px; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--blue, #2563eb); transform-origin: center; animation: growY .4s var(--ease) .1s both; }
+@media (max-width: 860px) {
+  html.first-load [class*="pg-"] aside { animation: slideInUp .6s var(--ease) both; }
+  html.first-load [class*="pg-"] aside .nav { animation: slideInUp .5s var(--ease) calc(.15s + var(--ni, 0) * 50ms) both; }
+  [class*="pg-"] aside .nav.on::before { left: 22%; right: 22%; top: -4px; bottom: auto; width: auto; height: 3px; transform-origin: left; animation: growX .4s var(--ease) .1s both; }
+}
+
+/* ---------- buttons: sheen sweep on hover ---------- */
+[class*="pg-"] .btn-p, [class*="pg-"] .btn.btn-primary, .pg-login .submit { position: relative; overflow: hidden; }
+[class*="pg-"] .btn-p::after, [class*="pg-"] .btn.btn-primary::after, .pg-login .submit::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent); pointer-events: none;
+}
+@media (hover: hover) {
+  [class*="pg-"] .btn-p:hover::after, [class*="pg-"] .btn.btn-primary:hover::after, .pg-login .submit:hover::after { animation: shine .8s ease; }
+}
+
+/* ---------- landing: living background and headline ---------- */
+.pg-landing h1.hero span { background: linear-gradient(90deg, #2563eb, #60a5fa, #2563eb); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 4.5s linear infinite; }
+.pg-landing section:first-of-type > div[aria-hidden] { animation: dots 9s linear infinite, glowDrift 14s ease-in-out infinite; }
+.pg-landing .ico { transition: transform .35s var(--ease-spring); }
+@media (hover: hover) { .pg-landing div:hover > .ico { transform: scale(1.12) rotate(-6deg); } }
+.pg-landing section [class="num"][style*="color: var(--blue)"] { display: inline-block; animation: popIn .6s var(--ease-spring) both; }
+.hc-slide .hc-photo img { animation: carIn .7s var(--ease) .1s both; }
+.hc-slide .hc-head, .hc-slide .hc-rows > div, .hc-slide .hc-profit { animation: riseIn .5s var(--ease) both; }
+.hc-slide .hc-rows > div:nth-child(1) { animation-delay: .18s; }
+.hc-slide .hc-rows > div:nth-child(2) { animation-delay: .24s; }
+.hc-slide .hc-rows > div:nth-child(3) { animation-delay: .30s; }
+.hc-slide .hc-profit { animation-delay: .38s; }
+.hc-slide .hc-status { animation: popIn .5s var(--ease-spring) .35s both; }
+
+/* ---------- tabs, inputs, details ---------- */
+[class*="pg-"] .tab, [class*="pg-"] .seg button { transition: background-color .22s ease, color .22s ease, box-shadow .22s ease, transform .15s var(--ease); }
+[class*="pg-"] .tab:active, [class*="pg-"] .seg button:active { transform: scale(.96); }
+[class*="pg-"] input:focus, [class*="pg-"] select:focus, [class*="pg-"] textarea:focus { transform: translateY(-1px); }
+[class*="pg-"] summary { cursor: pointer; transition: background-color .2s ease; }
+[class*="pg-"] summary:hover { background: color-mix(in oklab, var(--muted, #f5f5f5) 60%, transparent); }
+.pg-login input { transition: border-color .2s ease, box-shadow .2s ease, transform .2s var(--ease); }
+.pg-login .err { animation: riseIn .35s var(--ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html.first-load * { animation: none !important; }
+}
+
+/* charts and cards below the fold wait (paused) until they scroll into view */
+.rv:not(.rv-in) * { animation-play-state: paused !important; }
+
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(400%); } }
